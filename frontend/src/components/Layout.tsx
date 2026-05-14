@@ -42,7 +42,16 @@ export function Layout({ children }: { children: ReactNode }) {
               Connect GitHub
             </Link>
             <div className="ml-4 flex items-center gap-3 border-l border-ink-800 pl-4 text-ink-300">
-              <span>{user?.name}</span>
+              <Link
+                to="/settings"
+                className={
+                  location.pathname === '/settings'
+                    ? 'text-ink-50'
+                    : 'hover:text-ink-50'
+                }
+              >
+                {user?.name}
+              </Link>
               <button onClick={logout} className="hover:text-ink-50">
                 Sign out
               </button>

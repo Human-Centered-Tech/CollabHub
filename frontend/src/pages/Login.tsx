@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { PolarBearLogo } from '../components/PolarBearLogo';
 
 export function Login() {
   const { login } = useAuth();
@@ -27,7 +28,8 @@ export function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <PolarBearLogo className="mb-3 h-12 w-28 text-ink-50" />
           <h1 className="text-2xl font-semibold tracking-tight">CollabHub</h1>
           <p className="mt-2 text-sm text-ink-300">
             AI-generated PR summaries for engineering teams.

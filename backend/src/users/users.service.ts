@@ -29,4 +29,8 @@ export class UsersService {
     });
     return this.users.save(user);
   }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.users.update({ id: userId }, { passwordHash });
+  }
 }

@@ -42,6 +42,19 @@ export class AuthService {
     return this.makeResult(user);
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user) throw new UnauthorizedException();
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) throw new UnauthorizedException('Current password is incorrect');
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.users.updatePassword(userId, passwordHash);
+  }
+
   signGithubState(userId: string): string {
     return this.jwt.sign(
       { sub: userId, purpose: 'github-install' },
