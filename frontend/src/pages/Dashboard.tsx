@@ -143,34 +143,20 @@ export function SummaryCard({
   showRepo?: boolean;
 }) {
   const { pullRequest: pr, summary } = row;
-  const titleContent = (
+
+  const body = (
     <>
-      #{pr.number} {pr.title}
-    </>
-  );
-  return (
-    <li className="card transition-colors hover:border-ink-600">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-2">
             {showRepo && pr.repository && (
-              <Link
-                to={`/repositories/${pr.repository.id}`}
-                className="text-xs text-ink-300 hover:text-ink-100"
-              >
+              <span className="text-xs text-ink-300">
                 {pr.repository.fullName}
-              </Link>
+              </span>
             )}
-            {summary ? (
-              <Link
-                to={`/summaries/${summary.id}`}
-                className="font-medium hover:underline"
-              >
-                {titleContent}
-              </Link>
-            ) : (
-              <span className="font-medium">{titleContent}</span>
-            )}
+            <span className="font-medium">
+              #{pr.number} {pr.title}
+            </span>
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-ink-300">
             {pr.authorAvatarUrl && (
@@ -202,6 +188,21 @@ export function SummaryCard({
         <p className="mt-2 text-sm text-rose-300">
           Summary failed — open for details.
         </p>
+      )}
+    </>
+  );
+
+  return (
+    <li>
+      {summary ? (
+        <Link
+          to={`/summaries/${summary.id}`}
+          className="card block transition-colors hover:border-ink-600"
+        >
+          {body}
+        </Link>
+      ) : (
+        <div className="card">{body}</div>
       )}
     </li>
   );
