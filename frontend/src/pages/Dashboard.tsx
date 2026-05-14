@@ -18,6 +18,8 @@ interface PRRow {
     authorAvatarUrl: string;
     htmlUrl: string;
     state: string;
+    merged: boolean;
+    mergedAt?: string | null;
     repository?: { id: string; fullName: string };
     updatedAt: string;
   };
@@ -180,7 +182,10 @@ export function SummaryCard({
             <span>{new Date(pr.updatedAt).toLocaleString()}</span>
           </div>
         </div>
-        <StatusBadge status={summary?.status ?? 'pending'} />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <PrStateBadge pr={pr} />
+          <StatusBadge status={summary?.status ?? 'pending'} />
+        </div>
       </div>
       {summary?.status === 'ready' && (
         <div className="mt-4 space-y-4 text-sm">
@@ -230,6 +235,22 @@ function StatusBadge({ status }: { status: 'pending' | 'ready' | 'failed' }) {
     return <span className="badge bg-rose-900/40 text-rose-200">failed</span>;
   }
   return <span className="badge bg-ink-800 text-ink-300">pending</span>;
+}
+
+function PrStateBadge({
+  pr,
+}: {
+  pr: { state: string; merged: boolean };
+}) {
+  if (pr.merged) {
+    return (
+      <span className="badge bg-purple-900/40 text-purple-200">merged</span>
+    );
+  }
+  if (pr.state === 'closed') {
+    return <span className="badge bg-rose-900/40 text-rose-200">closed</span>;
+  }
+  return <span className="badge bg-sky-900/40 text-sky-200">open</span>;
 }
 
 function BulletList({

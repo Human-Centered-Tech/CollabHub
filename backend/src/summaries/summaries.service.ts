@@ -40,6 +40,8 @@ export class SummariesService {
     row.state = pr.state ?? 'open';
     row.htmlUrl = pr.html_url ?? '';
     row.body = pr.body ?? '';
+    row.merged = Boolean(pr.merged);
+    row.mergedAt = pr.merged_at ? new Date(pr.merged_at) : null;
     return this.prs.save(row);
   }
 

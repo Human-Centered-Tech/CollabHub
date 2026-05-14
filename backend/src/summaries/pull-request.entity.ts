@@ -49,6 +49,12 @@ export class PullRequest {
   @Column({ type: 'text', nullable: true })
   body: string;
 
+  @Column({ default: false })
+  merged: boolean;
+
+  @Column({ name: 'merged_at', type: 'timestamp', nullable: true })
+  mergedAt: Date | null;
+
   @OneToMany(() => Summary, (s) => s.pullRequest)
   summaries: Summary[];
 

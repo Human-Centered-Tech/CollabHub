@@ -74,17 +74,10 @@ export class WebhooksController {
 
     if (event === 'pull_request') {
       const action = payload.action;
-      if (!['opened', 'synchronize', 'reopened', 'ready_for_review'].includes(action)) {
-        return { ok: true, skipped: action };
-      }
       const repoId = payload.repository?.id;
-      const installationId = payload.installation?.id;
       const pr = payload.pull_request;
-      if (!repoId || !installationId || !pr) {
+      if (!repoId || !pr) {
         return { ok: false, error: 'missing-fields' };
-      }
-      if (pr.draft && action === 'opened') {
-        return { ok: true, skipped: 'draft' };
       }
       const repo = await this.github.findRepoByGithubId(repoId);
       if (!repo) {
@@ -95,7 +88,33 @@ export class WebhooksController {
         return { ok: true, skipped: 'disabled' };
       }
 
+      // For state-only changes (closed, edited, etc.), just update the row.
+      // For new-content actions, also kick off summary regeneration.
+      const summaryActions = ['opened', 'synchronize', 'reopened', 'ready_for_review'];
+      const stateActions = ['closed', 'edited'];
+
+      if (![...summaryActions, ...stateActions].includes(action)) {
+        return { ok: true, skipped: action };
+      }
+      if (pr.draft && action === 'opened') {
+        return { ok: true, skipped: 'draft' };
+      }
+
       const prRow = await this.summaries.upsertPullRequestFromWebhook(repo, pr);
+
+      if (!summaryActions.includes(action)) {
+        return {
+          ok: true,
+          updated: true,
+          state: prRow.state,
+          merged: prRow.merged,
+        };
+      }
+
+      const installationId = payload.installation?.id;
+      if (!installationId) {
+        return { ok: false, error: 'missing-installation' };
+      }
       const summary = await this.summaries.createPendingSummary(prRow);
 
       // Fire-and-forget: webhooks must return within ~10s, so do LLM work async.
