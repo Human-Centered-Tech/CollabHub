@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
+
+interface AppStatus {
+  configured: boolean;
+  slug?: string;
+  appId?: string;
+  source?: 'env' | 'db';
+}
 
 interface Installation {
   id: string;
@@ -9,18 +17,49 @@ interface Installation {
   accountAvatarUrl?: string;
 }
 
+interface Manifest {
+  postUrl: string;
+  state: string;
+  manifest: Record<string, unknown>;
+}
+
 export function ConnectGithub() {
+  const [params, setParams] = useSearchParams();
+  const [status, setStatus] = useState<AppStatus | null>(null);
   const [installs, setInstalls] = useState<Installation[]>([]);
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [manifest, setManifest] = useState<Manifest | null>(null);
+
+  const setupOutcome = useMemo(() => {
+    const setup = params.get('setup');
+    if (!setup) return null;
+    return {
+      ok: setup === 'success',
+      slug: params.get('slug') ?? undefined,
+      reason: params.get('reason') ?? undefined,
+    };
+  }, [params]);
+
+  async function load() {
+    try {
+      const [s, i] = await Promise.all([
+        api<AppStatus>('/github/app-status'),
+        api<Installation[]>('/github/installations'),
+      ]);
+      setStatus(s);
+      setInstalls(i);
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    api<Installation[]>('/github/installations')
-      .then(setInstalls)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+    load();
+  }, [setupOutcome?.ok]);
 
   async function startInstall() {
     setRedirecting(true);
@@ -37,38 +76,133 @@ export function ConnectGithub() {
     }
   }
 
+  async function startSetup() {
+    setError(null);
+    try {
+      const m = await api<Manifest>('/github/manifest');
+      setManifest(m);
+      // Wait a tick so React renders the form before we submit it.
+      setTimeout(() => {
+        const form = document.getElementById(
+          'manifest-form',
+        ) as HTMLFormElement | null;
+        form?.submit();
+      }, 0);
+    } catch (err: any) {
+      setError(err.message ?? 'Could not start setup');
+    }
+  }
+
+  function dismissSetupNotice() {
+    params.delete('setup');
+    params.delete('slug');
+    params.delete('reason');
+    setParams(params, { replace: true });
+  }
+
+  if (loading) return <p className="text-ink-300">Loading…</p>;
+
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-lg font-semibold">Connect GitHub</h2>
         <p className="mt-2 max-w-2xl text-sm text-ink-300">
-          Install the CollabHub GitHub App on the repositories you want
-          summarized. You choose the repos on GitHub's install screen — CollabHub
-          only sees what you grant.
+          {status?.configured
+            ? 'Install the CollabHub GitHub App on the repos you want summarized. CollabHub only sees what you grant.'
+            : "Before users can connect repos, the CollabHub GitHub App needs to exist. Use the one-click setup below."}
         </p>
       </div>
 
-      <div className="card">
-        <h3 className="mb-2 font-medium">Install the app</h3>
-        <p className="mb-4 text-sm text-ink-300">
-          You'll be redirected to GitHub to choose which repositories CollabHub
-          can read. You can change this at any time from your GitHub settings.
-        </p>
-        <button
-          onClick={startInstall}
-          disabled={redirecting}
-          className="btn-primary"
+      {setupOutcome && (
+        <div
+          className={`card flex items-start justify-between gap-4 border ${
+            setupOutcome.ok
+              ? 'border-emerald-700 bg-emerald-900/20'
+              : 'border-rose-700 bg-rose-900/20'
+          }`}
         >
-          {redirecting ? 'Redirecting…' : 'Install on GitHub'}
-        </button>
-        {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
-      </div>
+          <div className="text-sm">
+            {setupOutcome.ok ? (
+              <>
+                <p className="font-medium text-emerald-200">
+                  GitHub App created.
+                </p>
+                <p className="mt-1 text-ink-200">
+                  Slug: <code>{setupOutcome.slug}</code>. You can now install it
+                  on repos below.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-rose-200">Setup failed.</p>
+                <p className="mt-1 text-ink-200">
+                  Reason: {setupOutcome.reason ?? 'unknown'}
+                </p>
+              </>
+            )}
+          </div>
+          <button
+            onClick={dismissSetupNotice}
+            className="text-ink-300 hover:text-ink-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {!status?.configured ? (
+        <div className="card">
+          <h3 className="mb-2 font-medium">Step 1 · Create the GitHub App</h3>
+          <p className="mb-4 text-sm text-ink-300">
+            Clicking the button sends a one-page form to GitHub with all the
+            settings CollabHub needs (webhook URL, callback URL, permissions).
+            You'll confirm on GitHub, and the credentials come straight back to
+            this server — no copying secrets by hand.
+          </p>
+          <button onClick={startSetup} className="btn-primary">
+            Set up GitHub App
+          </button>
+          {manifest && (
+            <form
+              id="manifest-form"
+              method="post"
+              action={`${manifest.postUrl}?state=${encodeURIComponent(manifest.state)}`}
+              className="hidden"
+            >
+              <input
+                type="hidden"
+                name="manifest"
+                value={JSON.stringify(manifest.manifest)}
+              />
+            </form>
+          )}
+        </div>
+      ) : (
+        <div className="card">
+          <h3 className="mb-2 font-medium">Install the app</h3>
+          <p className="mb-4 text-sm text-ink-300">
+            You'll be redirected to GitHub to pick which repositories CollabHub
+            can read. You can change this later from your GitHub settings.
+          </p>
+          <p className="mb-4 text-xs text-ink-400">
+            Configured app: <code>{status.slug}</code> (id {status.appId},
+            source {status.source})
+          </p>
+          <button
+            onClick={startInstall}
+            disabled={redirecting}
+            className="btn-primary"
+          >
+            {redirecting ? 'Redirecting…' : 'Install on GitHub'}
+          </button>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-rose-300">{error}</p>}
 
       <div>
         <h3 className="mb-3 font-medium">Existing installations</h3>
-        {loading ? (
-          <p className="text-ink-300">Loading…</p>
-        ) : installs.length === 0 ? (
+        {installs.length === 0 ? (
           <p className="text-ink-300">No installations yet.</p>
         ) : (
           <ul className="space-y-2">

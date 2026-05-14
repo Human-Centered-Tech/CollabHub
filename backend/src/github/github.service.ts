@@ -11,60 +11,52 @@ import { createAppAuth } from '@octokit/auth-app';
 import { Octokit } from '@octokit/rest';
 import { Installation } from './installation.entity';
 import { Repository as RepoEntity } from './repository.entity';
+import { AppConfigService } from './app-config.service';
 
 @Injectable()
 export class GithubService {
   private readonly logger = new Logger(GithubService.name);
-  private readonly appId: string;
-  private readonly privateKey: string;
-  private readonly slug: string;
-  private appOctokit: Octokit | null = null;
 
   constructor(
     private readonly config: ConfigService,
+    private readonly appConfig: AppConfigService,
     @InjectRepository(Installation)
     private readonly installations: OrmRepository<Installation>,
     @InjectRepository(RepoEntity)
     private readonly repositories: OrmRepository<RepoEntity>,
-  ) {
-    this.appId = config.get<string>('GITHUB_APP_ID') ?? '';
-    this.slug = config.get<string>('GITHUB_APP_SLUG') ?? '';
-    // Allow `\n` literal in env values (Railway multi-line is fine, but support both).
-    const raw = config.get<string>('GITHUB_APP_PRIVATE_KEY') ?? '';
-    this.privateKey = raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
-  }
+  ) {}
 
-  installUrl(state: string): string {
-    if (!this.slug) {
+  async installUrl(state: string): Promise<string> {
+    const cfg = await this.appConfig.resolved();
+    if (!cfg?.slug) {
       throw new BadRequestException(
-        'GITHUB_APP_SLUG is not configured on the server',
+        'GitHub App is not configured yet. Run the manifest setup first.',
       );
     }
-    return `https://github.com/apps/${this.slug}/installations/new?state=${encodeURIComponent(state)}`;
+    return `https://github.com/apps/${cfg.slug}/installations/new?state=${encodeURIComponent(state)}`;
   }
 
-  private getAppOctokit(): Octokit {
-    if (!this.appId || !this.privateKey) {
+  private async getAppOctokit(): Promise<Octokit> {
+    const cfg = await this.appConfig.resolved();
+    if (!cfg) {
       throw new BadRequestException('GitHub App is not configured');
     }
-    if (!this.appOctokit) {
-      this.appOctokit = new Octokit({
-        authStrategy: createAppAuth,
-        auth: { appId: this.appId, privateKey: this.privateKey },
-      });
-    }
-    return this.appOctokit;
+    return new Octokit({
+      authStrategy: createAppAuth,
+      auth: { appId: cfg.appId, privateKey: cfg.privateKey },
+    });
   }
 
-  installationOctokit(installationId: string | number): Octokit {
-    if (!this.appId || !this.privateKey) {
+  async installationOctokit(installationId: string | number): Promise<Octokit> {
+    const cfg = await this.appConfig.resolved();
+    if (!cfg) {
       throw new BadRequestException('GitHub App is not configured');
     }
     return new Octokit({
       authStrategy: createAppAuth,
       auth: {
-        appId: this.appId,
-        privateKey: this.privateKey,
+        appId: cfg.appId,
+        privateKey: cfg.privateKey,
         installationId: Number(installationId),
       },
     });
@@ -75,12 +67,11 @@ export class GithubService {
     userId: string,
     githubInstallationId: string,
   ): Promise<Installation> {
-    const app = this.getAppOctokit();
+    const app = await this.getAppOctokit();
     const { data } = await app.request('GET /app/installations/{installation_id}', {
       installation_id: Number(githubInstallationId),
     });
 
-    // If another user already linked this installation, reject.
     const existing = await this.installations.findOne({
       where: { githubInstallationId: String(data.id) },
     });
@@ -107,7 +98,6 @@ export class GithubService {
     record.userId = userId;
     const saved = await this.installations.save(record);
 
-    // Eagerly sync the repos accessible to this installation.
     await this.syncRepositories(saved);
     return saved;
   }
@@ -154,7 +144,7 @@ export class GithubService {
   }
 
   async syncRepositories(installation: Installation): Promise<RepoEntity[]> {
-    const octokit = this.installationOctokit(installation.githubInstallationId);
+    const octokit = await this.installationOctokit(installation.githubInstallationId);
     const repos = await octokit.paginate(
       octokit.apps.listReposAccessibleToInstallation,
       { per_page: 100 },
@@ -204,14 +194,13 @@ export class GithubService {
     });
   }
 
-  /** Fetch a PR with its diff. Diff is plain text and may be large. */
   async fetchPullRequestDetails(
     installationId: string,
     owner: string,
     repo: string,
     prNumber: number,
   ): Promise<{ pr: any; diff: string }> {
-    const octokit = this.installationOctokit(installationId);
+    const octokit = await this.installationOctokit(installationId);
     const [pr, diffResp] = await Promise.all([
       octokit.pulls.get({ owner, repo, pull_number: prNumber }),
       octokit.pulls.get({

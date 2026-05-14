@@ -9,24 +9,21 @@ import {
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import type { Request } from 'express';
 import { GithubService } from '../github/github.service';
+import { AppConfigService } from '../github/app-config.service';
 import { SummariesService } from '../summaries/summaries.service';
 
 @Controller('webhooks')
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);
-  private readonly secret: string;
 
   constructor(
-    private readonly config: ConfigService,
     private readonly github: GithubService,
+    private readonly appConfig: AppConfigService,
     private readonly summaries: SummariesService,
-  ) {
-    this.secret = config.get<string>('GITHUB_APP_WEBHOOK_SECRET') ?? '';
-  }
+  ) {}
 
   @Post('github')
   @HttpCode(200)
@@ -41,11 +38,12 @@ export class WebhooksController {
       throw new BadRequestException('Expected raw body buffer');
     }
 
-    if (!this.secret) {
-      this.logger.error('GITHUB_APP_WEBHOOK_SECRET is not configured');
+    const cfg = await this.appConfig.resolved();
+    if (!cfg?.webhookSecret) {
+      this.logger.error('GitHub App webhook secret is not configured');
       throw new UnauthorizedException('Webhooks not configured');
     }
-    if (!this.verifySignature(raw, signature)) {
+    if (!this.verifySignature(raw, signature, cfg.webhookSecret)) {
       throw new UnauthorizedException('Invalid signature');
     }
 
@@ -115,9 +113,9 @@ export class WebhooksController {
     return { ok: true, ignored: event };
   }
 
-  private verifySignature(raw: Buffer, signature?: string): boolean {
+  private verifySignature(raw: Buffer, signature: string | undefined, secret: string): boolean {
     if (!signature) return false;
-    const hmac = crypto.createHmac('sha256', this.secret);
+    const hmac = crypto.createHmac('sha256', secret);
     hmac.update(raw);
     const expected = `sha256=${hmac.digest('hex')}`;
     try {
