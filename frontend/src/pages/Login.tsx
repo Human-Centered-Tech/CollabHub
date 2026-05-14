@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 
 export function Login() {
@@ -70,12 +70,6 @@ export function Login() {
           >
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
-          <p className="text-center text-xs text-ink-300">
-            No account?{' '}
-            <Link to="/register" className="text-ink-100 underline">
-              Register
-            </Link>
-          </p>
         </form>
       </div>
     </div>

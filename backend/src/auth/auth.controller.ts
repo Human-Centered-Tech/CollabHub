@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -36,10 +38,20 @@ class LoginDto {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
+    // Shared-instance mode: registration is closed by default so an
+    // unauthenticated visitor can't grant themselves access to every repo.
+    // Flip REGISTRATION_ENABLED=true on the backend service to re-open it
+    // (e.g. to add a new teammate), then flip it back off.
+    if (this.config.get<string>('REGISTRATION_ENABLED') !== 'true') {
+      throw new ForbiddenException('Registration is disabled');
+    }
     return this.auth.register(dto.email, dto.name, dto.password);
   }
 
