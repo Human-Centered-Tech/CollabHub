@@ -36,7 +36,7 @@ export class GithubService {
     return `https://github.com/apps/${cfg.slug}/installations/new?state=${encodeURIComponent(state)}`;
   }
 
-  private async getAppOctokit(): Promise<Octokit> {
+  async getAppOctokit(): Promise<Octokit> {
     const cfg = await this.appConfig.resolved();
     if (!cfg) {
       throw new BadRequestException('GitHub App is not configured');
@@ -45,6 +45,38 @@ export class GithubService {
       authStrategy: createAppAuth,
       auth: { appId: cfg.appId, privateKey: cfg.privateKey },
     });
+  }
+
+  /**
+   * Lists all installations of our GitHub App on github.com that are not yet
+   * linked to any CollabHub user. Lets a user "claim" an installation they
+   * created on github.com without a setup_url redirect.
+   */
+  async listDiscoverableInstallations(): Promise<
+    Array<{
+      githubInstallationId: string;
+      accountLogin: string;
+      accountType: string;
+      accountAvatarUrl: string | null;
+      createdAt: string;
+    }>
+  > {
+    const app = await this.getAppOctokit();
+    const installs = await app.paginate(app.apps.listInstallations, {
+      per_page: 100,
+    });
+    const linkedIds = new Set(
+      (await this.installations.find()).map((i) => i.githubInstallationId),
+    );
+    return (installs as any[])
+      .filter((i) => !linkedIds.has(String(i.id)))
+      .map((i) => ({
+        githubInstallationId: String(i.id),
+        accountLogin: i.account?.login ?? i.account?.slug ?? 'unknown',
+        accountType: i.account?.type ?? 'Organization',
+        accountAvatarUrl: i.account?.avatar_url ?? null,
+        createdAt: i.created_at,
+      }));
   }
 
   async installationOctokit(installationId: string | number): Promise<Octokit> {

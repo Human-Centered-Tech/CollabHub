@@ -74,8 +74,13 @@ export class GithubController {
         url: `${backendUrl}/api/webhooks/github`,
         active: true,
       },
+      // Where GitHub redirects after the user confirms app creation (manifest flow).
       redirect_url: `${backendUrl}/api/github/manifest-callback`,
+      // OAuth callback URLs.
       callback_urls: [`${frontendUrl}/github/callback`],
+      // Where GitHub redirects after the app is INSTALLED on a repo.
+      setup_url: `${frontendUrl}/github/callback`,
+      setup_on_update: true,
       public: false,
       default_permissions: {
         pull_requests: 'write',
@@ -160,10 +165,34 @@ export class GithubController {
     return { ok: true, installation };
   }
 
+  /**
+   * Claim an existing GitHub App installation (one made on github.com that
+   * never made it through our /github/callback redirect). State-free since
+   * the caller is already authenticated as a CollabHub user.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('installations/:githubInstallationId/claim')
+  async claim(
+    @CurrentUser() user: User,
+    @Param('githubInstallationId') githubInstallationId: string,
+  ) {
+    const installation = await this.github.linkInstallation(
+      user.id,
+      githubInstallationId,
+    );
+    return { ok: true, installation };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('installations')
   installations(@CurrentUser() user: User) {
     return this.github.listUserInstallations(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('discoverable-installations')
+  discoverable() {
+    return this.github.listDiscoverableInstallations();
   }
 
   @UseGuards(JwtAuthGuard)

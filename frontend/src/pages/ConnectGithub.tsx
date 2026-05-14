@@ -17,6 +17,14 @@ interface Installation {
   accountAvatarUrl?: string;
 }
 
+interface DiscoverableInstallation {
+  githubInstallationId: string;
+  accountLogin: string;
+  accountType: string;
+  accountAvatarUrl?: string | null;
+  createdAt: string;
+}
+
 interface Manifest {
   postUrl: string;
   state: string;
@@ -27,8 +35,12 @@ export function ConnectGithub() {
   const [params, setParams] = useSearchParams();
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [installs, setInstalls] = useState<Installation[]>([]);
+  const [discoverable, setDiscoverable] = useState<DiscoverableInstallation[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
+  const [claiming, setClaiming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<Manifest | null>(null);
 
@@ -44,16 +56,39 @@ export function ConnectGithub() {
 
   async function load() {
     try {
-      const [s, i] = await Promise.all([
-        api<AppStatus>('/github/app-status'),
-        api<Installation[]>('/github/installations'),
-      ]);
+      const s = await api<AppStatus>('/github/app-status');
       setStatus(s);
+      const i = await api<Installation[]>('/github/installations');
       setInstalls(i);
+      if (s.configured) {
+        try {
+          const d = await api<DiscoverableInstallation[]>(
+            '/github/discoverable-installations',
+          );
+          setDiscoverable(d);
+        } catch {
+          setDiscoverable([]);
+        }
+      }
     } catch (err: any) {
       setError(err.message ?? 'Failed to load');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function claim(githubInstallationId: string) {
+    setClaiming(githubInstallationId);
+    setError(null);
+    try {
+      await api(`/github/installations/${githubInstallationId}/claim`, {
+        method: 'POST',
+      });
+      await load();
+    } catch (err: any) {
+      setError(err.message ?? 'Could not claim installation');
+    } finally {
+      setClaiming(null);
     }
   }
 
@@ -199,6 +234,53 @@ export function ConnectGithub() {
       )}
 
       {error && <p className="text-sm text-rose-300">{error}</p>}
+
+      {discoverable.length > 0 && (
+        <div className="card border-amber-700 bg-amber-900/10">
+          <h3 className="mb-2 font-medium text-amber-100">
+            Unlinked installations found
+          </h3>
+          <p className="mb-4 text-sm text-ink-300">
+            CollabHub found GitHub App installations that aren't linked to any
+            account yet (e.g. you installed on github.com without being
+            redirected back). Click "Link to my account" to claim them.
+          </p>
+          <ul className="space-y-2">
+            {discoverable.map((d) => (
+              <li
+                key={d.githubInstallationId}
+                className="flex items-center justify-between gap-3 rounded-lg border border-ink-800 bg-ink-950/40 p-3"
+              >
+                <div className="flex items-center gap-3">
+                  {d.accountAvatarUrl && (
+                    <img
+                      src={d.accountAvatarUrl}
+                      alt=""
+                      className="h-8 w-8 rounded-full"
+                    />
+                  )}
+                  <div>
+                    <div className="font-medium">{d.accountLogin}</div>
+                    <div className="text-xs text-ink-300">
+                      {d.accountType} · installed{' '}
+                      {new Date(d.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => claim(d.githubInstallationId)}
+                  disabled={claiming === d.githubInstallationId}
+                  className="btn-primary"
+                >
+                  {claiming === d.githubInstallationId
+                    ? 'Linking…'
+                    : 'Link to my account'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div>
         <h3 className="mb-3 font-medium">Existing installations</h3>
