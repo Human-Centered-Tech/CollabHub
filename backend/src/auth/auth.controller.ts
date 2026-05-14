@@ -46,6 +46,19 @@ class ChangePasswordDto {
   newPassword: string;
 }
 
+class CreateUserDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(1)
+  name: string;
+
+  @IsString()
+  @MinLength(8)
+  password: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -90,5 +103,18 @@ export class AuthController {
       dto.newPassword,
     );
     return { ok: true };
+  }
+
+  /**
+   * Authenticated user creates a teammate account. Shared-instance mode:
+   * any logged-in user can invite others. The created user gets the
+   * temporary password the inviter chose; they can change it from
+   * /settings after first sign-in.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('users')
+  async createUser(@Body() dto: CreateUserDto) {
+    const result = await this.auth.register(dto.email, dto.name, dto.password);
+    return { ok: true, user: result.user };
   }
 }
