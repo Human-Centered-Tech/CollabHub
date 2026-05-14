@@ -13,7 +13,12 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link to="/" className="flex items-center gap-2">
             <PolarBearLogo className="h-7 w-16 text-ink-50" />
-            <span className="font-semibold tracking-tight">CollabHub</span>
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold tracking-tight">CollabHub</span>
+              <span className="text-xs font-normal text-ink-400">
+                by Human Centered Tech
+              </span>
+            </div>
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link
