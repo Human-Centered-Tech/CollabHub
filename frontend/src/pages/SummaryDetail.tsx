@@ -5,7 +5,6 @@ import {
   BulletList,
   PrStateBadge,
   PrSummary,
-  StatusBadge,
 } from '../components/SummaryBits';
 
 interface SummaryResponse extends PrSummary {
@@ -114,9 +113,8 @@ export function SummaryDetail() {
               )}
             </div>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
+          <div className="shrink-0">
             <PrStateBadge pr={pr} />
-            <StatusBadge status={data.status} />
           </div>
         </div>
       </header>

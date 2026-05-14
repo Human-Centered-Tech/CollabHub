@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import {
-  PrStateBadge,
-  StatusBadge,
-  PrSummary,
-} from '../components/SummaryBits';
+import { PrStateBadge, PrSummary } from '../components/SummaryBits';
 
 interface RepoRow {
   id: string;
@@ -171,9 +167,8 @@ export function SummaryCard({
             <span>{new Date(pr.updatedAt).toLocaleString()}</span>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="shrink-0">
           <PrStateBadge pr={pr} />
-          <StatusBadge status={summary?.status ?? 'pending'} />
         </div>
       </div>
       {summary?.status === 'ready' && summary.overview && (
