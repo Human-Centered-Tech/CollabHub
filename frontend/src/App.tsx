@@ -7,6 +7,7 @@ import { ConnectGithub } from './pages/ConnectGithub';
 import { GithubCallback } from './pages/GithubCallback';
 import { RepositoryPage } from './pages/Repository';
 import { Settings } from './pages/Settings';
+import { SummaryDetail } from './pages/SummaryDetail';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/connect" element={<ConnectGithub />} />
         <Route path="/github/callback" element={<GithubCallback />} />
         <Route path="/repositories/:id" element={<RepositoryPage />} />
+        <Route path="/summaries/:id" element={<SummaryDetail />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

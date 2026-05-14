@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import {
+  PrStateBadge,
+  StatusBadge,
+  PrSummary,
+} from '../components/SummaryBits';
 
 interface RepoRow {
   id: string;
@@ -23,16 +28,7 @@ interface PRRow {
     repository?: { id: string; fullName: string };
     updatedAt: string;
   };
-  summary: {
-    id: string;
-    status: 'pending' | 'ready' | 'failed';
-    overview?: string;
-    pros?: string[];
-    cons?: string[];
-    watchOuts?: string[];
-    authorNote?: string;
-    model?: string;
-  } | null;
+  summary: PrSummary | null;
 }
 
 export function Dashboard() {
@@ -147,8 +143,13 @@ export function SummaryCard({
   showRepo?: boolean;
 }) {
   const { pullRequest: pr, summary } = row;
+  const titleContent = (
+    <>
+      #{pr.number} {pr.title}
+    </>
+  );
   return (
-    <li className="card">
+    <li className="card transition-colors hover:border-ink-600">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-2">
@@ -160,14 +161,16 @@ export function SummaryCard({
                 {pr.repository.fullName}
               </Link>
             )}
-            <a
-              href={pr.htmlUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium hover:underline"
-            >
-              #{pr.number} {pr.title}
-            </a>
+            {summary ? (
+              <Link
+                to={`/summaries/${summary.id}`}
+                className="font-medium hover:underline"
+              >
+                {titleContent}
+              </Link>
+            ) : (
+              <span className="font-medium">{titleContent}</span>
+            )}
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-ink-300">
             {pr.authorAvatarUrl && (
@@ -187,100 +190,19 @@ export function SummaryCard({
           <StatusBadge status={summary?.status ?? 'pending'} />
         </div>
       </div>
-      {summary?.status === 'ready' && (
-        <div className="mt-4 space-y-4 text-sm">
-          {summary.overview && (
-            <p className="text-ink-100">{summary.overview}</p>
-          )}
-          {summary.authorNote && (
-            <p className="rounded-md border border-ink-800 bg-ink-950/50 p-3 text-ink-200">
-              <span className="text-xs uppercase tracking-wide text-ink-400">
-                For @{pr.authorLogin}:
-              </span>{' '}
-              {summary.authorNote}
-            </p>
-          )}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <BulletList title="Pros" tone="emerald" items={summary.pros} />
-            <BulletList title="Cons" tone="rose" items={summary.cons} />
-            <BulletList
-              title="Watch out for"
-              tone="amber"
-              items={summary.watchOuts}
-            />
-          </div>
-        </div>
-      )}
-      {summary?.status === 'pending' && (
-        <p className="mt-3 text-sm text-ink-300">
-          Generating summary…
+      {summary?.status === 'ready' && summary.overview && (
+        <p className="mt-3 line-clamp-2 text-sm text-ink-200">
+          {summary.overview}
         </p>
       )}
+      {summary?.status === 'pending' && (
+        <p className="mt-2 text-sm text-ink-300">Generating summary…</p>
+      )}
       {summary?.status === 'failed' && (
-        <p className="mt-3 text-sm text-rose-300">
-          Summary failed: {(summary as any).errorMessage ?? 'unknown error'}
+        <p className="mt-2 text-sm text-rose-300">
+          Summary failed — open for details.
         </p>
       )}
     </li>
-  );
-}
-
-function StatusBadge({ status }: { status: 'pending' | 'ready' | 'failed' }) {
-  if (status === 'ready') {
-    return (
-      <span className="badge bg-emerald-900/40 text-emerald-200">ready</span>
-    );
-  }
-  if (status === 'failed') {
-    return <span className="badge bg-rose-900/40 text-rose-200">failed</span>;
-  }
-  return <span className="badge bg-ink-800 text-ink-300">pending</span>;
-}
-
-function PrStateBadge({
-  pr,
-}: {
-  pr: { state: string; merged: boolean };
-}) {
-  if (pr.merged) {
-    return (
-      <span className="badge bg-purple-900/40 text-purple-200">merged</span>
-    );
-  }
-  if (pr.state === 'closed') {
-    return <span className="badge bg-rose-900/40 text-rose-200">closed</span>;
-  }
-  return <span className="badge bg-sky-900/40 text-sky-200">open</span>;
-}
-
-function BulletList({
-  title,
-  tone,
-  items,
-}: {
-  title: string;
-  tone: 'emerald' | 'rose' | 'amber';
-  items?: string[];
-}) {
-  if (!items || items.length === 0) return null;
-  const colour = {
-    emerald: 'text-emerald-200',
-    rose: 'text-rose-200',
-    amber: 'text-amber-200',
-  }[tone];
-  return (
-    <div>
-      <h4 className={`text-xs font-semibold uppercase tracking-wide ${colour}`}>
-        {title}
-      </h4>
-      <ul className="mt-2 space-y-1 text-ink-100">
-        {items.map((it, i) => (
-          <li key={i} className="flex gap-2">
-            <span className={`${colour}`}>•</span>
-            <span>{it}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
