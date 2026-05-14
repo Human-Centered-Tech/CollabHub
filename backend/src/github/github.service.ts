@@ -238,4 +238,19 @@ export class GithubService {
     ]);
     return { pr: pr.data, diff: typeof diffResp.data === 'string' ? diffResp.data : '' };
   }
+
+  async fetchPullRequestMeta(
+    installationId: string,
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ): Promise<any> {
+    const octokit = await this.installationOctokit(installationId);
+    const { data } = await octokit.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+    return data;
+  }
 }

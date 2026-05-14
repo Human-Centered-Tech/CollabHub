@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/user.entity';
@@ -15,6 +22,11 @@ export class SummariesController {
       user.id,
       limit ? parseInt(limit, 10) : 20,
     );
+  }
+
+  @Post('refresh-states')
+  refreshStates() {
+    return this.summaries.refreshAllPullRequestStates();
   }
 
   @Get('repository/:repoId')

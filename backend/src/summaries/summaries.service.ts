@@ -143,6 +143,45 @@ export class SummariesService {
     return out;
   }
 
+  /**
+   * Re-fetch state/merged/mergedAt for every tracked PR from GitHub. Useful
+   * to backfill rows whose merges happened before this app started listening
+   * for `closed` webhooks.
+   */
+  async refreshAllPullRequestStates(): Promise<{
+    updated: number;
+    failed: number;
+  }> {
+    const prs = await this.prs.find({
+      relations: ['repository', 'repository.installation'],
+    });
+    let updated = 0;
+    let failed = 0;
+    for (const pr of prs) {
+      try {
+        const repo = pr.repository;
+        const installation = repo.installation;
+        const ghPr = await this.github.fetchPullRequestMeta(
+          installation.githubInstallationId,
+          repo.owner,
+          repo.name,
+          pr.number,
+        );
+        pr.state = ghPr.state ?? pr.state;
+        pr.merged = Boolean(ghPr.merged);
+        pr.mergedAt = ghPr.merged_at ? new Date(ghPr.merged_at) : null;
+        await this.prs.save(pr);
+        updated++;
+      } catch (err: any) {
+        this.logger.error(
+          `Refresh failed for PR ${pr.id}: ${err.message ?? err}`,
+        );
+        failed++;
+      }
+    }
+    return { updated, failed };
+  }
+
   async findById(_userId: string, summaryId: string): Promise<Summary> {
     const summary = await this.summaries.findOne({
       where: { id: summaryId },
