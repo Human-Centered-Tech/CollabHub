@@ -35,7 +35,7 @@ export class Installation {
   user: User;
 
   @Index()
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
   @OneToMany(() => Repository, (r) => r.installation)

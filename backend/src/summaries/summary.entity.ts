@@ -21,7 +21,7 @@ export class Summary {
   pullRequest: PullRequest;
 
   @Index()
-  @Column({ name: 'pull_request_id' })
+  @Column({ name: 'pull_request_id', type: 'uuid' })
   pullRequestId: string;
 
   @Column({ name: 'head_sha' })

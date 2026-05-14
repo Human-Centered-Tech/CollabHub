@@ -22,7 +22,7 @@ export class PullRequest {
   @JoinColumn({ name: 'repository_id' })
   repository: Repository;
 
-  @Column({ name: 'repository_id' })
+  @Column({ name: 'repository_id', type: 'uuid' })
   repositoryId: string;
 
   @Column()

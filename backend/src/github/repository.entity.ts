@@ -41,7 +41,7 @@ export class Repository {
   installation: Installation;
 
   @Index()
-  @Column({ name: 'installation_id' })
+  @Column({ name: 'installation_id', type: 'uuid' })
   installationId: string;
 
   @OneToMany(() => PullRequest, (p) => p.repository)
