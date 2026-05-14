@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { PandaLogo } from './PandaLogo';
+import { PolarBearLogo } from './PolarBearLogo';
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -12,7 +12,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="border-b border-ink-800 bg-ink-900/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link to="/" className="flex items-center gap-2">
-            <PandaLogo className="h-8 w-8" />
+            <PolarBearLogo className="h-6 w-10" />
             <span className="font-semibold tracking-tight">CollabHub</span>
           </Link>
           <nav className="flex items-center gap-4 text-sm">
