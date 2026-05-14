@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -36,6 +37,7 @@ export class Repository {
   enabled: boolean;
 
   @ManyToOne(() => Installation, (i) => i.repositories, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'installation_id' })
   installation: Installation;
 
   @Index()

@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -18,6 +19,7 @@ export class PullRequest {
   id: string;
 
   @ManyToOne(() => Repository, (r) => r.pullRequests, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'repository_id' })
   repository: Repository;
 
   @Column({ name: 'repository_id' })

@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -16,6 +17,7 @@ export class Summary {
   id: string;
 
   @ManyToOne(() => PullRequest, (p) => p.summaries, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'pull_request_id' })
   pullRequest: PullRequest;
 
   @Index()
