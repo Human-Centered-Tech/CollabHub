@@ -104,14 +104,11 @@ export class GithubService {
       installation_id: Number(githubInstallationId),
     });
 
+    // Shared-instance mode: any authenticated user can claim/re-link any
+    // installation. userId on the row is kept only as a "linked by" audit field.
     const existing = await this.installations.findOne({
       where: { githubInstallationId: String(data.id) },
     });
-    if (existing && existing.userId !== userId) {
-      throw new BadRequestException(
-        'This GitHub installation is already linked to another CollabHub account',
-      );
-    }
 
     const account = data.account as any;
     const accountLogin = account?.login ?? account?.slug ?? 'unknown';
@@ -134,32 +131,29 @@ export class GithubService {
     return saved;
   }
 
-  async listUserInstallations(userId: string): Promise<Installation[]> {
-    return this.installations.find({
-      where: { userId },
-      order: { createdAt: 'ASC' },
-    });
+  // Shared-instance mode: every authenticated user sees every installation
+  // and every repo. The `userId` param is preserved on the signatures for
+  // when we re-introduce per-team scoping, but is intentionally ignored here.
+  async listUserInstallations(_userId: string): Promise<Installation[]> {
+    return this.installations.find({ order: { createdAt: 'ASC' } });
   }
 
-  async listUserRepositories(userId: string): Promise<RepoEntity[]> {
-    const installs = await this.installations.find({ where: { userId } });
-    if (installs.length === 0) return [];
+  async listUserRepositories(_userId: string): Promise<RepoEntity[]> {
     return this.repositories.find({
-      where: installs.map((i) => ({ installationId: i.id })),
       relations: ['installation'],
       order: { fullName: 'ASC' },
     });
   }
 
   async getRepositoryForUser(
-    userId: string,
+    _userId: string,
     repoId: string,
   ): Promise<RepoEntity> {
     const repo = await this.repositories.findOne({
       where: { id: repoId },
       relations: ['installation'],
     });
-    if (!repo || repo.installation.userId !== userId) {
+    if (!repo) {
       throw new NotFoundException('Repository not found');
     }
     return repo;

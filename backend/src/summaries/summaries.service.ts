@@ -123,11 +123,9 @@ export class SummariesService {
     return rows;
   }
 
-  async listRecentForUser(userId: string, limit = 20) {
-    const repos = await this.github.listUserRepositories(userId);
-    if (repos.length === 0) return [];
+  // Shared-instance mode: list across all repos, no per-user filter.
+  async listRecentForUser(_userId: string, limit = 20) {
     const prs = await this.prs.find({
-      where: repos.map((r) => ({ repositoryId: r.id })),
       order: { updatedAt: 'DESC' },
       take: limit,
       relations: ['repository'],
@@ -143,15 +141,12 @@ export class SummariesService {
     return out;
   }
 
-  async findById(userId: string, summaryId: string): Promise<Summary> {
+  async findById(_userId: string, summaryId: string): Promise<Summary> {
     const summary = await this.summaries.findOne({
       where: { id: summaryId },
       relations: ['pullRequest', 'pullRequest.repository', 'pullRequest.repository.installation'],
     });
     if (!summary) throw new NotFoundException('Summary not found');
-    if (summary.pullRequest.repository.installation.userId !== userId) {
-      throw new NotFoundException('Summary not found');
-    }
     return summary;
   }
 }
